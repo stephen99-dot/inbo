@@ -55,8 +55,8 @@ router.get('/emails/:id', verifyToken, (req, res) => {
   res.json(email);
 });
 
-router.patch('/emails/:id', verifyToken, (req, res) => {
-  const { status, draft_approved, draft_content } = req.body;
+router.patch('/emails/:id', verifyToken, async (req, res) => {
+  const { status, draft_approved, draft_content, has_draft } = req.body;
   const email = db.prepare('SELECT * FROM emails WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!email) return res.status(404).json({ error: 'Email not found' });
 
@@ -65,11 +65,32 @@ router.patch('/emails/:id', verifyToken, (req, res) => {
   if (status) { updates.push('status = ?'); params.push(status); }
   if (draft_approved !== undefined) { updates.push('draft_approved = ?'); params.push(draft_approved ? 1 : 0); }
   if (draft_content !== undefined) { updates.push('draft_content = ?'); params.push(draft_content); }
+  if (has_draft !== undefined) { updates.push('has_draft = ?'); params.push(has_draft ? 1 : 0); }
 
   if (updates.length) {
     params.push(req.params.id);
     db.prepare(`UPDATE emails SET ${updates.join(', ')} WHERE id = ?`).run(...params);
   }
+
+  // If approving, actually send via Gmail
+  if (draft_approved && draft_content) {
+    try {
+      const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+      if (user.gmail_connected) {
+        await sendEmail(req.user.id, {
+          to: email.from_email,
+          subject: email.subject,
+          body: draft_content,
+          threadId: email.message_id
+        });
+        console.log(`Email sent to ${email.from_email}: "${email.subject}"`);
+      }
+    } catch (err) {
+      console.error('Send error:', err.message);
+      return res.status(500).json({ error: 'Draft saved but failed to send: ' + err.message });
+    }
+  }
+
   res.json({ success: true });
 });
 
@@ -190,7 +211,7 @@ router.get('/admin/stats', verifyToken, requireAdmin, (req, res) => {
 });
 
 // ─── GMAIL OAUTH ───────────────────────────────────────────────────────────────
-const { getAuthUrl, exchangeCode, fetchEmails, createGmailDraft } = require('./gmail');
+const { getAuthUrl, exchangeCode, fetchEmails, createGmailDraft, sendEmail } = require('./gmail');
 
 router.get('/auth/gmail', verifyToken, (req, res) => {
   const url = getAuthUrl(req.user.id);
