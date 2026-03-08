@@ -119,25 +119,66 @@ export function PeoplePage() {
 
 // ─── INTEGRATIONS ──────────────────────────────────────────────────────────────
 export function IntegrationsPage() {
-  const { user } = useAuth();
-  const { setUser } = useAuth();
+  const { user, setUser } = useAuth();
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
+
+  // Check URL for success/error from OAuth callback
+  const hash = window.location.hash;
+  const urlSuccess = hash.includes('success=gmail');
+  const urlError = hash.includes('error=');
 
   const INTEGRATIONS = [
-    { key: 'gmail', icon: '📧', name: 'Gmail', desc: 'Connect your Gmail inbox', connected: user?.gmail_connected },
-    { key: 'outlook', icon: '📬', name: 'Outlook / Microsoft 365', desc: 'Connect your Outlook inbox', connected: user?.outlook_connected },
-    { key: 'gcal', icon: '📅', name: 'Google Calendar', desc: 'Sync your calendar for scheduling', connected: false },
-    { key: 'zoom', icon: '🎥', name: 'Zoom', desc: 'Let Inbo join and transcribe Zoom calls', connected: false },
-    { key: 'teams', icon: '💻', name: 'Microsoft Teams', desc: 'Let Inbo join and transcribe Teams calls', connected: false },
-    { key: 'meet', icon: '📡', name: 'Google Meet', desc: 'Let Inbo join and transcribe Meet calls', connected: false },
+    { key: 'gmail', icon: Icon.mail, name: 'Gmail', desc: 'Connect your Gmail inbox to read and draft emails', connected: user?.gmail_connected, email: user?.gmail_email },
+    { key: 'outlook', icon: Icon.inbox, name: 'Outlook / Microsoft 365', desc: 'Connect your Outlook inbox', connected: user?.outlook_connected },
+    { key: 'gcal', icon: Icon.calendar, name: 'Google Calendar', desc: 'Sync your calendar for scheduling', connected: false },
+    { key: 'zoom', icon: Icon.video, name: 'Zoom', desc: 'Let Inbo join and transcribe Zoom calls', connected: false },
+    { key: 'teams', icon: Icon.video, name: 'Microsoft Teams', desc: 'Let Inbo join and transcribe Teams calls', connected: false },
+    { key: 'meet', icon: Icon.video, name: 'Google Meet', desc: 'Let Inbo join and transcribe Meet calls', connected: false },
   ];
 
+  const connectGmail = async () => {
+    try {
+      const data = await api.get('/auth/gmail');
+      window.location.href = data.url;
+    } catch (err) {
+      alert('Failed to start Gmail OAuth: ' + err.message);
+    }
+  };
+
+  const syncGmail = async () => {
+    setSyncing(true);
+    setSyncMsg('');
+    try {
+      const result = await api.post('/gmail/sync', {});
+      setSyncMsg(`Synced ${result.synced} emails, ${result.added} new.`);
+      setTimeout(() => setSyncMsg(''), 4000);
+    } catch (err) {
+      setSyncMsg('Sync failed: ' + err.message);
+    }
+    setSyncing(false);
+  };
+
   const handleConnect = (key) => {
-    alert(`${key === 'gmail' ? 'Gmail' : 'This'} OAuth coming soon — add the relevant API credentials to your Render environment variables.`);
+    if (key === 'gmail') return connectGmail();
+    alert('Coming soon — Outlook and calendar integrations are on the roadmap.');
   };
 
   return (
     <Layout title="Integrations" topbarRight={<button className="topbar-btn ghost">Update preferences</button>}>
       <div className="tabs"><button className="tab-btn active">General</button></div>
+
+      {urlSuccess && (
+        <div style={{ marginBottom: 14, padding: '10px 14px', background: 'var(--green-soft)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--green)' }}>
+          Gmail connected successfully! Your inbox is being synced.
+        </div>
+      )}
+      {urlError && (
+        <div style={{ marginBottom: 14, padding: '10px 14px', background: 'var(--red-soft)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--red)' }}>
+          Gmail connection failed. Please try again.
+        </div>
+      )}
+
       <div className="settings-section">
         <div className="settings-section-header">Connected accounts</div>
         {INTEGRATIONS.map(int => (
@@ -146,21 +187,31 @@ export function IntegrationsPage() {
             <div className="int-info">
               <div className="int-name">{int.name}</div>
               <div className={`int-status ${int.connected ? 'connected' : ''}`}>
-                {int.connected ? 'Connected' : int.desc}
+                {int.connected ? `Connected${int.email ? ' · ' + int.email : ''}` : int.desc}
               </div>
             </div>
-            <button
-              className={`btn btn-sm ${int.connected ? 'btn-danger' : 'btn-ghost'}`}
-              onClick={() => handleConnect(int.key)}
-            >
-              {int.connected ? 'Disconnect' : 'Connect'}
-            </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {int.key === 'gmail' && int.connected && (
+                <button className="btn btn-ghost btn-sm" onClick={syncGmail} disabled={syncing}>
+                  {syncing ? 'Syncing...' : 'Sync inbox'}
+                </button>
+              )}
+              <button
+                className={`btn btn-sm ${int.connected ? 'btn-danger' : 'btn-ghost'}`}
+                onClick={() => handleConnect(int.key)}
+              >
+                {int.connected ? 'Disconnect' : 'Connect'}
+              </button>
+            </div>
           </div>
         ))}
       </div>
-      <div style={{ padding: 14, background: 'var(--amber-softer)', border: '1px solid rgba(240,112,48,0.2)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-        <strong style={{ color: 'var(--amber)' }}>Setting up OAuth?</strong> Add <code style={{ background: 'var(--bg-active)', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>GOOGLE_CLIENT_ID</code>, <code style={{ background: 'var(--bg-active)', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>GOOGLE_CLIENT_SECRET</code> to Render environment variables. See README for full setup guide.
-      </div>
+
+      {syncMsg && (
+        <div style={{ padding: '10px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-secondary)' }}>
+          {syncMsg}
+        </div>
+      )}
     </Layout>
   );
 }
