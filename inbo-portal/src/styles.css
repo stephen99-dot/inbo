@@ -410,3 +410,220 @@ input,select,textarea{font-family:var(--font)}
   .promo-grid{grid-template-columns:1fr}
   .meetings-grid{grid-template-columns:1fr}
 }
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — full overhaul
+   ═══════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* ── Sidebar: hidden off-screen by default ── */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 300;
+    width: 260px;
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+  }
+
+  /* ── Overlay behind open sidebar ── */
+  .sidebar-overlay {
+    display: block !important;
+  }
+
+  /* ── Main content: full width ── */
+  .main-content {
+    margin-left: 0 !important;
+  }
+
+  /* ── Topbar: show hamburger ── */
+  .topbar {
+    padding: 0 14px;
+  }
+  .topbar-hamburger {
+    display: flex !important;
+  }
+  .topbar-title {
+    font-size: 14px;
+  }
+
+  /* ── Page body: reduce padding ── */
+  .page-body {
+    padding: 14px;
+  }
+
+  /* ── Stats: stack to 1 col ── */
+  .stat-row {
+    grid-template-columns: 1fr !important;
+  }
+  .stat-card {
+    padding: 16px 18px;
+  }
+  .stat-value {
+    font-size: 28px;
+  }
+
+  /* ── Meetings / promo grids ── */
+  .meetings-grid,
+  .promo-grid,
+  .notetaker-feature-strip {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Inbox: stack vertically ── */
+  .inbox-layout {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    margin: -14px !important;
+  }
+  .email-list-panel {
+    height: 45vh;
+    min-height: 280px;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+  }
+  .email-detail-panel {
+    min-height: 50vh;
+  }
+
+  /* ── Chat: hide sidebar, show main only ── */
+  .chat-layout {
+    grid-template-columns: 1fr !important;
+    margin: -14px !important;
+    height: calc(100vh - 50px) !important;
+  }
+  .chat-side {
+    display: none !important;
+  }
+  .chat-main {
+    padding: 20px 14px;
+  }
+  .chat-input-box {
+    max-width: 100% !important;
+  }
+  .chat-suggestions {
+    max-width: 100% !important;
+  }
+
+  /* ── Categorization ── */
+  .cat-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Settings ── */
+  .settings-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .sel {
+    min-width: unset !important;
+    width: 100%;
+  }
+  .form-row {
+    grid-template-columns: 1fr !important;
+  }
+  .scheduling-section {
+    grid-template-columns: 1fr !important;
+  }
+  .sched-link-box {
+    min-width: unset !important;
+    width: 100%;
+  }
+
+  /* ── Plan grid: stack ── */
+  .plan-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Admin table: horizontal scroll ── */
+  .admin-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Integrations: wrap buttons ── */
+  .integration-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .integration-row .int-info {
+    flex-basis: 100%;
+  }
+
+  /* ── Auth card: full width ── */
+  .auth-card {
+    padding: 24px 20px;
+    border-radius: 12px;
+  }
+
+  /* ── Modal: full screen on small devices ── */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .modal {
+    border-radius: 14px 14px 0 0;
+    max-width: 100% !important;
+    padding: 24px 20px;
+  }
+
+  /* ── Notif dropdown: full width ── */
+  .notif-dropdown {
+    width: calc(100vw - 28px);
+    right: -60px;
+  }
+
+  /* ── Drafts: stack list + detail ── */
+  .drafts-grid-mobile {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Tabs: scrollable ── */
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+  }
+  .tab-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Topbar actions: reduce gaps ── */
+  .topbar-actions {
+    gap: 4px;
+  }
+  .topbar-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+/* Always hide these on desktop */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 299;
+}
+.topbar-hamburger {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px;
+  margin-right: 8px;
+  align-items: center;
+  justify-content: center;
+}
+.topbar-hamburger svg {
+  width: 20px;
+  height: 20px;
+}
