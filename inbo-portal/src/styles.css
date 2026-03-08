@@ -478,16 +478,28 @@ input,select,textarea{font-family:var(--font)}
   .inbox-layout {
     grid-template-columns: 1fr !important;
     height: auto !important;
+    min-height: calc(100vh - 50px);
     margin: -14px !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
   .email-list-panel {
-    height: 45vh;
-    min-height: 280px;
+    height: 50vh !important;
+    min-height: 300px;
     border-right: none !important;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .email-scroll {
+    flex: 1;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
   }
   .email-detail-panel {
+    flex: 1;
     min-height: 50vh;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* ── Chat: hide sidebar, show main only ── */
