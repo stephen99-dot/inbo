@@ -108,4 +108,13 @@ addIfMissing('gmail_refresh_token', 'TEXT');
 addIfMissing('gmail_token_expires', 'INTEGER');
 addIfMissing('gmail_watch_expiry', 'INTEGER');
 
+const existingEmailCols = db.prepare("PRAGMA table_info(emails)").all().map(c => c.name);
+const addEmailColIfMissing = (col, def) => {
+  if (!existingEmailCols.includes(col)) {
+    db.prepare(`ALTER TABLE emails ADD COLUMN ${col} ${def}`).run();
+    console.log(`Migration: added emails column ${col}`);
+  }
+};
+addEmailColIfMissing('thread_id', 'TEXT');
+
 module.exports = db;
