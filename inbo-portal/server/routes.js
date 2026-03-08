@@ -189,6 +189,360 @@ router.get('/admin/stats', verifyToken, requireAdmin, (req, res) => {
   res.json({ totalUsers, totalEmails, gmailConnected, newToday });
 });
 
+// ─── GMAIL OAUTH ───────────────────────────────────────────────────────────────
+const { getAuthUrl, exchangeCode, fetchEmails, createGmailDraft } = require('./gmail');
+
+router.get('/auth/gmail', verifyToken, (req, res) => {
+  const url = getAuthUrl(req.user.id);
+  res.json({ url });
+});
+
+router.get('/auth/gmail/callback', async (req, res) => {
+  const { code, state: userId, error } = req.query;
+  if (error || !code) return res.redirect('/#/settings/integrations?error=gmail_denied');
+
+  try {
+    const tokens = await exchangeCode(code);
+    if (tokens.error) throw new Error(tokens.error);
+
+    // Get user's Gmail address
+    const https = require('https');
+    const gmailEmail = await new Promise((resolve) => {
+      const req2 = https.request({
+        hostname: 'www.googleapis.com',
+        path: '/oauth2/v2/userinfo',
+        headers: { Authorization: `Bearer ${tokens.access_token}` }
+      }, res2 => {
+        let d = '';
+        res2.on('data', c => d += c);
+        res2.on('end', () => { try { resolve(JSON.parse(d).email); } catch { resolve(''); } });
+      });
+      req2.end();
+    });
+
+    const expires = Date.now() + (tokens.expires_in * 1000);
+    db.prepare(`UPDATE users SET
+      gmail_connected = 1,
+      gmail_email = ?,
+      gmail_access_token = ?,
+      gmail_refresh_token = ?,
+      gmail_token_expires = ?
+      WHERE id = ?`
+    ).run(gmailEmail, tokens.access_token, tokens.refresh_token, expires, userId);
+
+    // Sync inbox
+    try {
+      const emails = await fetchEmails(userId, 50);
+      for (const e of emails) {
+        const exists = db.prepare('SELECT id FROM emails WHERE user_id = ? AND message_id = ?').get(userId, e.message_id);
+        if (!exists) {
+          const { v4: uuid } = require('uuid');
+          db.prepare(`INSERT INTO emails (id, user_id, message_id, provider, from_name, from_email, subject, body_preview, full_body, category, status)
+            VALUES (?, ?, ?, 'gmail', ?, ?, ?, ?, ?, 'uncategorised', 'unread')`
+          ).run(uuid(), userId, e.message_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body);
+        }
+      }
+    } catch {}
+
+    res.redirect('/#/settings/integrations?success=gmail');
+  } catch (err) {
+    res.redirect(`/#/settings/integrations?error=${encodeURIComponent(err.message)}`);
+  }
+});
+
+router.post('/gmail/sync', verifyToken, async (req, res) => {
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    if (!user.gmail_connected) return res.status(400).json({ error: 'Gmail not connected' });
+
+    const emails = await fetchEmails(req.user.id, 50);
+    let added = 0;
+    for (const e of emails) {
+      const exists = db.prepare('SELECT id FROM emails WHERE user_id = ? AND message_id = ?').get(req.user.id, e.message_id);
+      if (!exists) {
+        db.prepare(`INSERT INTO emails (id, user_id, message_id, provider, from_name, from_email, subject, body_preview, full_body, category, status)
+          VALUES (?, ?, ?, 'gmail', ?, ?, ?, ?, ?, 'uncategorised', 'unread')`
+        ).run(require('uuid').v4(), req.user.id, e.message_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body);
+        added++;
+      }
+    }
+    res.json({ synced: emails.length, added });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── CHAT ──────────────────────────────────────────────────────────────────────
+router.get('/chat/conversations', verifyToken, (req, res) => {
+  const convos = db.prepare(
+    'SELECT id, title, created_at FROM chat_conversations WHERE user_id = ? ORDER BY created_at DESC LIMIT 50'
+  ).all(req.user.id);
+  res.json(convos);
+});
+
+router.post('/chat/conversations', verifyToken, (req, res) => {
+  const id = uuidv4();
+  const { title } = req.body;
+  db.prepare(
+    'INSERT INTO chat_conversations (id, user_id, title) VALUES (?, ?, ?)'
+  ).run(id, req.user.id, title || 'New conversation');
+  res.json({ id, title: title || 'New conversation' });
+});
+
+router.get('/chat/conversations/:id/messages', verifyToken, (req, res) => {
+  const convo = db.prepare('SELECT * FROM chat_conversations WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!convo) return res.status(404).json({ error: 'Not found' });
+  const messages = db.prepare('SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC').all(req.params.id);
+  res.json(messages);
+});
+
+router.post('/chat/conversations/:id/messages', verifyToken, async (req, res) => {
+  const convo = db.prepare('SELECT * FROM chat_conversations WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!convo) return res.status(404).json({ error: 'Not found' });
+
+  const { message } = req.body;
+  if (!message?.trim()) return res.status(400).json({ error: 'Message required' });
+
+  const userMsgId = uuidv4();
+  db.prepare('INSERT INTO chat_messages (id, conversation_id, role, content) VALUES (?, ?, ?, ?)').run(userMsgId, req.params.id, 'user', message);
+
+  const msgCount = db.prepare('SELECT COUNT(*) as c FROM chat_messages WHERE conversation_id = ?').get(req.params.id).c;
+  if (msgCount <= 1) {
+    const shortTitle = message.length > 40 ? message.substring(0, 40) + '...' : message;
+    db.prepare('UPDATE chat_conversations SET title = ? WHERE id = ?').run(shortTitle, req.params.id);
+  }
+
+  const history = db.prepare('SELECT role, content FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC').all(req.params.id);
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  // ── Tools ──
+  const tools = [
+    {
+      name: 'search_emails',
+      description: 'Search the user\'s emails by sender name, email address, subject, or keywords in the body. Use this whenever the user mentions a person or topic to find related emails.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search term — name, email address, subject keyword, or body keyword' },
+          limit: { type: 'number', description: 'Max results to return, default 5' }
+        },
+        required: ['query']
+      }
+    },
+    {
+      name: 'get_email',
+      description: 'Get the full content of a specific email by its ID.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          email_id: { type: 'string', description: 'The email ID' }
+        },
+        required: ['email_id']
+      }
+    },
+    {
+      name: 'create_draft',
+      description: 'Create a draft reply to an email. This saves it to the user\'s Drafts in both Inbo and Gmail (if connected) so they can review, edit and send it.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          email_id: { type: 'string', description: 'ID of the email being replied to' },
+          draft_content: { type: 'string', description: 'The full draft reply text' }
+        },
+        required: ['email_id', 'draft_content']
+      }
+    },
+    {
+      name: 'list_emails',
+      description: 'List recent emails, optionally filtered by category (urgent, reply_needed, fyi, marketing, uncategorised) or status (unread, read).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', description: 'Filter by category' },
+          status: { type: 'string', description: 'Filter by status: unread or read' },
+          limit: { type: 'number', description: 'Max results, default 10' }
+        }
+      }
+    }
+  ];
+
+  // ── Tool execution ──
+  const executeTool = async (toolName, toolInput) => {
+    if (toolName === 'search_emails') {
+      const q = `%${toolInput.query}%`;
+      const limit = toolInput.limit || 5;
+      const emails = db.prepare(`SELECT id, from_name, from_email, subject, body_preview, category, status, received_at
+        FROM emails WHERE user_id = ? AND (from_name LIKE ? OR from_email LIKE ? OR subject LIKE ? OR body_preview LIKE ?)
+        ORDER BY received_at DESC LIMIT ?`).all(req.user.id, q, q, q, q, limit);
+      return emails.length > 0
+        ? emails.map(e => `ID: ${e.id}\nFrom: ${e.from_name} <${e.from_email}>\nSubject: ${e.subject}\nCategory: ${e.category}\nStatus: ${e.status}\nPreview: ${e.body_preview}`).join('\n\n')
+        : 'No emails found matching that search.';
+    }
+
+    if (toolName === 'get_email') {
+      const email = db.prepare('SELECT * FROM emails WHERE id = ? AND user_id = ?').get(toolInput.email_id, req.user.id);
+      if (!email) return 'Email not found.';
+      return `ID: ${email.id}\nFrom: ${email.from_name} <${email.from_email}>\nSubject: ${email.subject}\nStatus: ${email.status}\nCategory: ${email.category}\n\nBody:\n${email.full_body || email.body_preview}`;
+    }
+
+    if (toolName === 'list_emails') {
+      let query = 'SELECT id, from_name, from_email, subject, body_preview, category, status FROM emails WHERE user_id = ?';
+      const params = [req.user.id];
+      if (toolInput.category) { query += ' AND category = ?'; params.push(toolInput.category); }
+      if (toolInput.status) { query += ' AND status = ?'; params.push(toolInput.status); }
+      query += ' ORDER BY received_at DESC LIMIT ?';
+      params.push(toolInput.limit || 10);
+      const emails = db.prepare(query).all(...params);
+      return emails.length > 0
+        ? emails.map(e => `ID: ${e.id}\nFrom: ${e.from_name} <${e.from_email}>\nSubject: ${e.subject}\nCategory: ${e.category} | ${e.status}`).join('\n\n')
+        : 'No emails found.';
+    }
+
+    if (toolName === 'create_draft') {
+      const email = db.prepare('SELECT * FROM emails WHERE id = ? AND user_id = ?').get(toolInput.email_id, req.user.id);
+      if (!email) return 'Email not found.';
+
+      db.prepare('UPDATE emails SET has_draft = 1, draft_content = ?, draft_approved = 0 WHERE id = ?')
+        .run(toolInput.draft_content, toolInput.email_id);
+
+      // Push to Gmail if connected
+      if (user.gmail_connected && user.gmail_refresh_token) {
+        try {
+          await createGmailDraft(req.user.id, {
+            to: email.from_email,
+            subject: email.subject,
+            body: toolInput.draft_content,
+            threadId: email.message_id
+          });
+          return `Draft created and saved to your Gmail Drafts folder. You can review and edit it in the Drafts page or directly in Gmail.`;
+        } catch (e) {
+          return `Draft saved to Inbo Drafts (Gmail sync failed: ${e.message}). You can review it in the Drafts page.`;
+        }
+      }
+
+      return `Draft saved to your Inbo Drafts page. You can review, edit and approve it there. Connect Gmail in Settings to also sync drafts to Gmail.`;
+    }
+
+    return 'Unknown tool.';
+  };
+
+  // ── Agentic loop ──
+  try {
+    let fullResponse = '';
+    let messages = history.map(m => ({ role: m.role, content: m.content }));
+    const systemPrompt = `You are Inbo, an AI email assistant. You help users manage their inbox, draft replies, summarise threads, and stay on top of communications.
+
+User: ${user.full_name} (${user.gmail_email || user.email})
+Gmail connected: ${user.gmail_connected ? 'Yes' : 'No'}
+
+When the user asks to draft a reply:
+1. Use search_emails or get_email to find the relevant email first
+2. Write a professional reply matching their tone
+3. Use create_draft to save it — this puts it in their Drafts page and Gmail Drafts if connected
+
+Be concise and helpful. Always use tools before answering questions about specific emails.`;
+
+    const runLoop = async () => {
+      const https = require('https');
+      const body = JSON.stringify({
+        model: 'claude-sonnet-4-5-20251001',
+        max_tokens: 1024,
+        system: systemPrompt,
+        tools,
+        messages
+      });
+
+      return new Promise((resolve, reject) => {
+        const apiReq = https.request({
+          hostname: 'api.anthropic.com',
+          path: '/v1/messages',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'Content-Length': Buffer.byteLength(body)
+          }
+        }, (apiRes) => {
+          let data = '';
+          apiRes.on('data', c => data += c);
+          apiRes.on('end', () => {
+            try { resolve(JSON.parse(data)); } catch { reject(new Error('Parse error')); }
+          });
+        });
+        apiReq.on('error', reject);
+        apiReq.write(body);
+        apiReq.end();
+      });
+    };
+
+    let iterations = 0;
+    while (iterations < 5) {
+      iterations++;
+      const response = await runLoop();
+
+      if (response.error) {
+        res.write(`data: ${JSON.stringify({ text: `Error: ${response.error.message}` })}\n\n`);
+        break;
+      }
+
+      // Stream any text blocks
+      for (const block of response.content) {
+        if (block.type === 'text' && block.text) {
+          fullResponse += block.text;
+          // Stream word by word
+          const words = block.text.split(' ');
+          for (const word of words) {
+            res.write(`data: ${JSON.stringify({ text: word + ' ' })}\n\n`);
+          }
+        }
+      }
+
+      // If tool use needed
+      if (response.stop_reason === 'tool_use') {
+        const toolUses = response.content.filter(b => b.type === 'tool_use');
+        messages.push({ role: 'assistant', content: response.content });
+
+        const toolResults = [];
+        for (const toolUse of toolUses) {
+          res.write(`data: ${JSON.stringify({ tool: toolUse.name })}\n\n`);
+          const result = await executeTool(toolUse.name, toolUse.input);
+          toolResults.push({ type: 'tool_result', tool_use_id: toolUse.id, content: result });
+        }
+        messages.push({ role: 'user', content: toolResults });
+        continue;
+      }
+
+      break;
+    }
+
+    // Save final response
+    if (fullResponse) {
+      db.prepare('INSERT INTO chat_messages (id, conversation_id, role, content) VALUES (?, ?, ?, ?)').run(uuidv4(), req.params.id, 'assistant', fullResponse);
+    }
+
+    res.write('data: [DONE]\n\n');
+    res.end();
+
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ text: 'Something went wrong: ' + err.message })}\n\n`);
+    res.write('data: [DONE]\n\n');
+    res.end();
+  }
+});
+
+router.delete('/chat/conversations/:id', verifyToken, (req, res) => {
+  const convo = db.prepare('SELECT * FROM chat_conversations WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!convo) return res.status(404).json({ error: 'Not found' });
+  db.prepare('DELETE FROM chat_messages WHERE conversation_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM chat_conversations WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
 // ─── HELPER ────────────────────────────────────────────────────────────────────
 function safeUser(u) {
   const { password_hash, ...safe } = u;
