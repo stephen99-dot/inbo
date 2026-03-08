@@ -192,4 +192,27 @@ async function createGmailDraft(userId, { to, subject, body, threadId }) {
   return result;
 }
 
-module.exports = { getAuthUrl, exchangeCode, fetchEmails, createGmailDraft, gmailRequest };
+// ── Send email ────────────────────────────────────────────────────────────────
+async function sendEmail(userId, { to, subject, body, threadId }) {
+  const user = db.prepare('SELECT gmail_email FROM users WHERE id = ?').get(userId);
+  const fromEmail = user?.gmail_email || '';
+
+  const emailLines = [
+    `From: ${fromEmail}`,
+    `To: ${to}`,
+    `Subject: ${subject.startsWith('Re:') ? subject : 'Re: ' + subject}`,
+    'Content-Type: text/plain; charset=utf-8',
+    'MIME-Version: 1.0',
+    '',
+    body
+  ];
+  const raw = Buffer.from(emailLines.join('\r\n')).toString('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  const sendBody = { raw, ...(threadId ? { threadId } : {}) };
+  const result = await gmailRequest(userId, '/gmail/v1/users/me/messages/send', 'POST', sendBody);
+  console.log('Send result:', result.id, result.labelIds);
+  return result;
+}
+
+module.exports = { getAuthUrl, exchangeCode, fetchEmails, createGmailDraft, sendEmail, gmailRequest };
