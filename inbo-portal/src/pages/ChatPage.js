@@ -152,7 +152,7 @@ export default function ChatPage() {
   }, {});
 
   return (
-    <Layout title="Chat">
+    <Layout title="Chat" noPadding>
       <div className="chat-layout">
         {/* ── Left panel ── */}
         <div className="chat-side">
