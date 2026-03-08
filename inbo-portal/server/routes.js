@@ -77,6 +77,7 @@ router.patch('/emails/:id', verifyToken, async (req, res) => {
     try {
       const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
       if (user.gmail_connected) {
+        console.log('Sending email - to:', email.from_email, 'thread_id:', email.thread_id, 'message_id:', email.message_id);
         await sendEmail(req.user.id, {
           to: email.from_email,
           subject: email.subject,
