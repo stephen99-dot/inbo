@@ -561,7 +561,65 @@ router.delete('/chat/conversations/:id', verifyToken, (req, res) => {
   res.json({ success: true });
 });
 
-// ─── GMAIL WEBHOOK (Pub/Sub push) ─────────────────────────────────────────────
+router.post('/gmail/draft-all', verifyToken, async (req, res) => {
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    if (!user.gmail_connected) return res.status(400).json({ error: 'Gmail not connected' });
+
+    // Get unread emails with no draft yet
+    const emails = db.prepare(`
+      SELECT * FROM emails 
+      WHERE user_id = ? AND has_draft = 0 AND status = 'unread'
+      ORDER BY received_at DESC LIMIT 20
+    `).all(req.user.id);
+
+    res.json({ processing: emails.length });
+
+    // Process in background
+    (async () => {
+      let drafted = 0;
+      for (const email of emails) {
+        try {
+          // Categorise first
+          const category = await categoriseEmail(email);
+          db.prepare('UPDATE emails SET category = ? WHERE id = ?').run(category, email.id);
+
+          if (category === 'urgent' || category === 'reply_needed') {
+            const draft = await autoDraftReply(user, email);
+            if (draft) {
+              db.prepare('UPDATE emails SET has_draft = 1, draft_content = ? WHERE id = ?').run(draft, email.id);
+
+              if (user.gmail_refresh_token) {
+                try {
+                  await createGmailDraft(user.id, {
+                    to: email.from_email,
+                    subject: email.subject,
+                    body: draft,
+                    threadId: email.message_id
+                  });
+                } catch {}
+              }
+              drafted++;
+              console.log(`Drafted reply for: "${email.subject}"`);
+            }
+          }
+        } catch (err) {
+          console.error('Draft error for email:', email.subject, err.message);
+        }
+      }
+
+      // Notify user
+      if (drafted > 0) {
+        db.prepare(`INSERT INTO notifications (id, user_id, type, title, message) VALUES (?, ?, 'draft', ?, ?)`)
+          .run(uuidv4(), user.id, `${drafted} drafts ready`, `Inbo created ${drafted} draft replies. Review them in Drafts or Gmail.`);
+      }
+      console.log(`Bulk draft complete: ${drafted} drafts created`);
+    })();
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 router.post('/gmail/webhook', async (req, res) => {
   // Acknowledge immediately so Pub/Sub doesn't retry
   res.status(200).send('OK');
