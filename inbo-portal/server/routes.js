@@ -248,6 +248,13 @@ router.get('/auth/gmail/callback', async (req, res) => {
       }
     } catch {}
 
+    // Start Gmail push notifications watch
+    try {
+      await startGmailWatch(userId);
+    } catch (err) {
+      console.error('Watch start error:', err.message);
+    }
+
     res.redirect('/#/settings/integrations?success=gmail');
   } catch (err) {
     res.redirect(`/#/settings/integrations?error=${encodeURIComponent(err.message)}`);
@@ -546,6 +553,197 @@ router.delete('/chat/conversations/:id', verifyToken, (req, res) => {
   db.prepare('DELETE FROM chat_conversations WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
+
+// ─── GMAIL WEBHOOK (Pub/Sub push) ─────────────────────────────────────────────
+router.post('/gmail/webhook', async (req, res) => {
+  // Acknowledge immediately so Pub/Sub doesn't retry
+  res.status(200).send('OK');
+
+  try {
+    const message = req.body?.message;
+    if (!message?.data) return;
+
+    const data = JSON.parse(Buffer.from(message.data, 'base64').toString());
+    const { emailAddress, historyId } = data;
+    if (!emailAddress) return;
+
+    // Find user by gmail email
+    const user = db.prepare('SELECT * FROM users WHERE gmail_email = ? AND gmail_connected = 1').get(emailAddress);
+    if (!user) return;
+
+    console.log(`Webhook: new email for ${emailAddress}, historyId: ${historyId}`);
+    await processNewEmails(user);
+  } catch (err) {
+    console.error('Webhook error:', err.message);
+  }
+});
+
+// ─── GMAIL WATCH (start listening for new emails) ─────────────────────────────
+router.post('/gmail/watch', verifyToken, async (req, res) => {
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    if (!user.gmail_connected) return res.status(400).json({ error: 'Gmail not connected' });
+
+    const result = await startGmailWatch(req.user.id);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── PROCESS NEW EMAILS ───────────────────────────────────────────────────────
+async function processNewEmails(user) {
+  try {
+    const { fetchEmails, createGmailDraft } = require('./gmail');
+    const emails = await fetchEmails(user.id, 10);
+
+    for (const e of emails) {
+      const exists = db.prepare('SELECT id FROM emails WHERE user_id = ? AND message_id = ?').get(user.id, e.message_id);
+      if (exists) continue;
+
+      const emailId = uuidv4();
+
+      // Auto-categorise with Claude
+      const category = await categoriseEmail(e);
+
+      db.prepare(`INSERT INTO emails (id, user_id, message_id, provider, from_name, from_email, subject, body_preview, full_body, category, status)
+        VALUES (?, ?, ?, 'gmail', ?, ?, ?, ?, ?, ?, 'unread')`
+      ).run(emailId, user.id, e.message_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body, category);
+
+      console.log(`Processed email from ${e.from_name}: "${e.subject}" → ${category}`);
+
+      // Auto-draft reply for urgent/reply_needed emails
+      if (category === 'urgent' || category === 'reply_needed') {
+        try {
+          const draft = await autoDraftReply(user, e);
+          if (draft) {
+            db.prepare('UPDATE emails SET has_draft = 1, draft_content = ? WHERE id = ?').run(draft, emailId);
+
+            // Push draft to Gmail
+            await createGmailDraft(user.id, {
+              to: e.from_email,
+              subject: e.subject,
+              body: draft,
+              threadId: e.message_id
+            });
+
+            console.log(`Auto-drafted reply for: "${e.subject}"`);
+
+            // Notify user
+            db.prepare(`INSERT INTO notifications (id, user_id, type, title, message) VALUES (?, ?, 'draft', ?, ?)`
+            ).run(uuidv4(), user.id, `Draft ready: ${e.subject}`, `Inbo drafted a reply to ${e.from_name}. Review it in Drafts or Gmail.`);
+          }
+        } catch (err) {
+          console.error('Auto-draft error:', err.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('processNewEmails error:', err.message);
+  }
+}
+
+// ─── AUTO CATEGORISE ─────────────────────────────────────────────────────────
+async function categoriseEmail(email) {
+  try {
+    const https = require('https');
+    const body = JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 20,
+      system: 'Categorise this email into exactly one of: urgent, reply_needed, fyi, marketing, uncategorised. Reply with only the category word, nothing else.',
+      messages: [{
+        role: 'user',
+        content: `From: ${email.from_name} <${email.from_email}>\nSubject: ${email.subject}\n\n${email.body_preview}`
+      }]
+    });
+
+    const result = await new Promise((resolve, reject) => {
+      const req = https.request({
+        hostname: 'api.anthropic.com',
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'Content-Length': Buffer.byteLength(body)
+        }
+      }, res => {
+        let d = '';
+        res.on('data', c => d += c);
+        res.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve(null); } });
+      });
+      req.on('error', reject);
+      req.write(body);
+      req.end();
+    });
+
+    const text = result?.content?.[0]?.text?.trim().toLowerCase() || 'uncategorised';
+    const valid = ['urgent', 'reply_needed', 'fyi', 'marketing', 'uncategorised'];
+    return valid.includes(text) ? text : 'uncategorised';
+  } catch {
+    return 'uncategorised';
+  }
+}
+
+// ─── AUTO DRAFT REPLY ─────────────────────────────────────────────────────────
+async function autoDraftReply(user, email) {
+  try {
+    const https = require('https');
+    const body = JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      system: `You are an AI assistant drafting email replies on behalf of ${user.full_name}. Write professional, concise replies. Do not include a subject line. Just write the reply body.`,
+      messages: [{
+        role: 'user',
+        content: `Draft a reply to this email:\n\nFrom: ${email.from_name} <${email.from_email}>\nSubject: ${email.subject}\n\n${email.full_body || email.body_preview}`
+      }]
+    });
+
+    const result = await new Promise((resolve, reject) => {
+      const req = https.request({
+        hostname: 'api.anthropic.com',
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'Content-Length': Buffer.byteLength(body)
+        }
+      }, res => {
+        let d = '';
+        res.on('data', c => d += c);
+        res.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve(null); } });
+      });
+      req.on('error', reject);
+      req.write(body);
+      req.end();
+    });
+
+    return result?.content?.[0]?.text?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── START GMAIL WATCH ────────────────────────────────────────────────────────
+async function startGmailWatch(userId) {
+  const { gmailRequest } = require('./gmail');
+  const topicName = process.env.GOOGLE_PUBSUB_TOPIC;
+
+  const result = await gmailRequest(userId, '/gmail/v1/users/me/watch', 'POST', {
+    topicName,
+    labelIds: ['INBOX']
+  });
+
+  if (result.expiration) {
+    db.prepare('UPDATE users SET gmail_watch_expiry = ? WHERE id = ?').run(parseInt(result.expiration), userId);
+    console.log(`Gmail watch started for user ${userId}, expires: ${new Date(parseInt(result.expiration))}`);
+  }
+
+  return result;
+}
 
 // ─── HELPER ────────────────────────────────────────────────────────────────────
 function safeUser(u) {
