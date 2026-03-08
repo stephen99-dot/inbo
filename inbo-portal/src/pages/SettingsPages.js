@@ -150,7 +150,20 @@ export function IntegrationsPage() {
     }
   };
 
-  const syncGmail = async (full = false) => {
+  const [drafting, setDrafting] = useState(false);
+
+  const draftReplies = async () => {
+    setDrafting(true);
+    setSyncMsg('');
+    try {
+      const result = await api.post('/gmail/draft-all', {});
+      setSyncMsg(`Processing ${result.processing} emails — drafts will appear in Gmail and your Drafts page shortly.`);
+      setTimeout(() => setSyncMsg(''), 8000);
+    } catch (err) {
+      setSyncMsg('Failed: ' + err.message);
+    }
+    setDrafting(false);
+  };
     setSyncing(true);
     setSyncMsg('');
     try {
@@ -202,6 +215,9 @@ export function IntegrationsPage() {
                   </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => syncGmail(true)} disabled={syncing}>
                     Full sync
+                  </button>
+                  <button className="btn btn-primary btn-sm" onClick={draftReplies} disabled={drafting}>
+                    {drafting ? 'Processing...' : 'Draft replies'}
                   </button>
                 </>
               )}
