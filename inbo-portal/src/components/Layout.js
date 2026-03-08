@@ -249,7 +249,9 @@ export default function Layout({ children, title, topbarRight }) {
   return (
     <div className="app-shell">
       {/* ── MOBILE OVERLAY ── */}
-      <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} style={{ display: sidebarOpen ? 'block' : 'none' }} />
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
 
       {/* ── SIDEBAR ── */}
       <aside className={`sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
