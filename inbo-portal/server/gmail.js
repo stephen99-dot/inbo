@@ -210,7 +210,11 @@ async function sendEmail(userId, { to, subject, body, threadId }) {
   const raw = Buffer.from(emailLines.join('\r\n')).toString('base64')
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-  const sendBody = { raw, ...(threadId ? { threadId } : {}) };
+  const sendBody = {
+    raw,
+    ...(threadId ? { threadId } : {})
+  };
+
   const result = await gmailRequest(userId, '/gmail/v1/users/me/messages/send', 'POST', sendBody);
   if (result.error) throw new Error(`Gmail send error: ${JSON.stringify(result.error)}`);
   console.log('Email sent successfully:', result.id, result.labelIds);
