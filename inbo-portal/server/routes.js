@@ -199,11 +199,13 @@ router.get('/auth/gmail', verifyToken, (req, res) => {
 
 router.get('/auth/gmail/callback', async (req, res) => {
   const { code, state: userId, error } = req.query;
+  console.log('Gmail callback received:', { code: !!code, userId, error });
   if (error || !code) return res.redirect('/#/settings/integrations?error=gmail_denied');
 
   try {
     const tokens = await exchangeCode(code);
-    if (tokens.error) throw new Error(tokens.error);
+    console.log('Token exchange result:', { error: tokens.error, hasAccess: !!tokens.access_token, hasRefresh: !!tokens.refresh_token });
+    if (tokens.error) throw new Error(tokens.error + ': ' + tokens.error_description);
 
     // Get user's Gmail address
     const https = require('https');
@@ -219,9 +221,10 @@ router.get('/auth/gmail/callback', async (req, res) => {
       });
       req2.end();
     });
+    console.log('Gmail email:', gmailEmail, 'updating user:', userId);
 
     const expires = Date.now() + (tokens.expires_in * 1000);
-    db.prepare(`UPDATE users SET
+    const result = db.prepare(`UPDATE users SET
       gmail_connected = 1,
       gmail_email = ?,
       gmail_access_token = ?,
@@ -229,6 +232,7 @@ router.get('/auth/gmail/callback', async (req, res) => {
       gmail_token_expires = ?
       WHERE id = ?`
     ).run(gmailEmail, tokens.access_token, tokens.refresh_token, expires, userId);
+    console.log('DB update result:', result);
 
     // Sync inbox
     try {
