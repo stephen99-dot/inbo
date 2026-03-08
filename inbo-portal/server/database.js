@@ -95,4 +95,16 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_chat_msgs_convo ON chat_messages(conversation_id);
 `);
 
+// ── Migrations: add columns if they don't exist ───────────────────────────────
+const existingCols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
+const addIfMissing = (col, def) => {
+  if (!existingCols.includes(col)) {
+    db.prepare(`ALTER TABLE users ADD COLUMN ${col} ${def}`).run();
+    console.log(`Migration: added column ${col}`);
+  }
+};
+addIfMissing('gmail_access_token', 'TEXT');
+addIfMissing('gmail_refresh_token', 'TEXT');
+addIfMissing('gmail_token_expires', 'INTEGER');
+
 module.exports = db;
