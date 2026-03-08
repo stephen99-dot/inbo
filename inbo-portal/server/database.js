@@ -30,6 +30,9 @@ db.exec(`
     outlook_connected INTEGER DEFAULT 0,
     gmail_email TEXT,
     outlook_email TEXT,
+    gmail_access_token TEXT,
+    gmail_refresh_token TEXT,
+    gmail_token_expires INTEGER,
     tone_profile TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -70,6 +73,26 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_emails_user ON emails(user_id);
   CREATE INDEX IF NOT EXISTS idx_emails_status ON emails(status);
   CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+
+  CREATE TABLE IF NOT EXISTS chat_conversations (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS chat_messages (
+    id TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_chat_convos_user ON chat_conversations(user_id);
+  CREATE INDEX IF NOT EXISTS idx_chat_msgs_convo ON chat_messages(conversation_id);
 `);
 
 module.exports = db;
