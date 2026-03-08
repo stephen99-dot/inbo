@@ -223,7 +223,7 @@ input,select,textarea{font-family:var(--font)}
 .sel:hover,.sel:focus{border-color:var(--border-mid)}
 
 /* ─── CHAT ── */
-.chat-layout{display:grid;grid-template-columns:260px 1fr;height:calc(100vh - 50px);margin:-22px}
+.chat-layout{display:grid;grid-template-columns:260px 1fr;height:calc(100vh - 50px)}
 .chat-side{border-right:1px solid var(--border);background:var(--bg-card);display:flex;flex-direction:column;overflow:hidden}
 .chat-side-top{padding:12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
 .chat-search{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:7px 11px}
@@ -304,13 +304,13 @@ input,select,textarea{font-family:var(--font)}
 .pill-team{background:var(--purple-soft);color:var(--purple)}
 
 /* ─── INBOX ── */
-.inbox-layout{display:grid;grid-template-columns:310px 1fr;height:calc(100vh - 50px);margin:-22px}
-.email-list-panel{border-right:1px solid var(--border);background:var(--bg-card);display:flex;flex-direction:column;overflow:hidden}
+.inbox-layout{display:grid;grid-template-columns:310px 1fr;height:calc(100vh - 50px)}
+.email-list-panel{border-right:1px solid var(--border);background:var(--bg-card);display:flex;flex-direction:column;overflow:hidden;height:calc(100vh - 50px);position:sticky;top:0}
 .email-filters{padding:10px;border-bottom:1px solid var(--border);display:flex;gap:5px;flex-wrap:wrap;background:var(--bg-card)}
 .filter-chip{padding:5px 11px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-secondary);transition:all var(--transition)}
 .filter-chip:hover{border-color:var(--border-mid);color:var(--text)}
 .filter-chip.active{background:var(--amber-soft);border-color:var(--amber);color:var(--amber)}
-.email-scroll{flex:1;overflow-y:auto}
+.email-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
 .email-row{display:flex;gap:10px;padding:12px 13px;border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--transition);position:relative}
 .email-row:hover{background:var(--bg-hover)}
 .email-row.selected{background:var(--bg-active)}
@@ -479,7 +479,7 @@ input,select,textarea{font-family:var(--font)}
     grid-template-columns: 1fr !important;
     height: auto !important;
     min-height: calc(100vh - 50px);
-    margin: -14px !important;
+    margin: 0 !important;
     display: flex !important;
     flex-direction: column !important;
   }
@@ -505,7 +505,7 @@ input,select,textarea{font-family:var(--font)}
   /* ── Chat: hide sidebar, show main only ── */
   .chat-layout {
     grid-template-columns: 1fr !important;
-    margin: -14px !important;
+    margin: 0 !important;
     height: calc(100vh - 50px) !important;
   }
   .chat-side {
