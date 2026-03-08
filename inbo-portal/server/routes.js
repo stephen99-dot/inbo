@@ -81,7 +81,7 @@ router.patch('/emails/:id', verifyToken, async (req, res) => {
           to: email.from_email,
           subject: email.subject,
           body: draft_content,
-          threadId: email.message_id
+          threadId: email.thread_id || null
         });
         console.log(`Email sent to ${email.from_email}: "${email.subject}"`);
       }
@@ -262,9 +262,9 @@ router.get('/auth/gmail/callback', async (req, res) => {
         const exists = db.prepare('SELECT id FROM emails WHERE user_id = ? AND message_id = ?').get(userId, e.message_id);
         if (!exists) {
           const { v4: uuid } = require('uuid');
-          db.prepare(`INSERT INTO emails (id, user_id, message_id, provider, from_name, from_email, subject, body_preview, full_body, category, status)
-            VALUES (?, ?, ?, 'gmail', ?, ?, ?, ?, ?, 'uncategorised', 'unread')`
-          ).run(uuid(), userId, e.message_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body);
+          db.prepare(`INSERT INTO emails (id, user_id, message_id, thread_id, provider, from_name, from_email, subject, body_preview, full_body, category, status)
+            VALUES (?, ?, ?, ?, 'gmail', ?, ?, ?, ?, ?, 'uncategorised', 'unread')`
+          ).run(uuid(), userId, e.message_id, e.thread_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body);
         }
       }
     } catch {}
@@ -297,9 +297,9 @@ router.post('/gmail/sync', verifyToken, async (req, res) => {
     for (const e of emails) {
       const exists = db.prepare('SELECT id FROM emails WHERE user_id = ? AND message_id = ?').get(req.user.id, e.message_id);
       if (!exists) {
-        db.prepare(`INSERT INTO emails (id, user_id, message_id, provider, from_name, from_email, subject, body_preview, full_body, category, status)
-          VALUES (?, ?, ?, 'gmail', ?, ?, ?, ?, ?, 'uncategorised', 'unread')`
-        ).run(require('uuid').v4(), req.user.id, e.message_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body);
+        db.prepare(`INSERT INTO emails (id, user_id, message_id, thread_id, provider, from_name, from_email, subject, body_preview, full_body, category, status)
+          VALUES (?, ?, ?, ?, 'gmail', ?, ?, ?, ?, ?, 'uncategorised', 'unread')`
+        ).run(require('uuid').v4(), req.user.id, e.message_id, e.thread_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body);
         added++;
       }
     }
@@ -692,9 +692,9 @@ async function processNewEmails(user) {
       // Auto-categorise with Claude
       const category = await categoriseEmail(e);
 
-      db.prepare(`INSERT INTO emails (id, user_id, message_id, provider, from_name, from_email, subject, body_preview, full_body, category, status)
-        VALUES (?, ?, ?, 'gmail', ?, ?, ?, ?, ?, ?, 'unread')`
-      ).run(emailId, user.id, e.message_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body, category);
+      db.prepare(`INSERT INTO emails (id, user_id, message_id, thread_id, provider, from_name, from_email, subject, body_preview, full_body, category, status)
+        VALUES (?, ?, ?, ?, 'gmail', ?, ?, ?, ?, ?, ?, 'unread')`
+      ).run(emailId, user.id, e.message_id, e.thread_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body, category);
 
       console.log(`Processed email from ${e.from_name}: "${e.subject}" → ${category}`);
 
