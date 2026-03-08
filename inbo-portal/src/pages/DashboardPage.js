@@ -68,7 +68,7 @@ export default function DashboardPage() {
             <button className="copy-btn" onClick={copyLink}>{copied ? 'Copied ✓' : 'Copy link'}</button>
           </div>
           <div className="update-link" onClick={() => navigate('/scheduling')}>
-            Update Meeting Settings {Icon.arrowRight}
+            Update Meeting Settings →
           </div>
         </div>
       </div>
@@ -79,7 +79,7 @@ export default function DashboardPage() {
           <div className="promo-body">
             <div className="promo-title">Browse your meeting notes</div>
             <div className="promo-desc">Read full transcripts and get concise AI summaries of every meeting</div>
-            <div className="promo-cta">View Notes {Icon.arrowRight}</div>
+            <div className="promo-cta">View Notes →</div>
           </div>
         </div>
         <div className="promo-card" onClick={() => navigate('/categorization')}>
@@ -87,7 +87,7 @@ export default function DashboardPage() {
           <div className="promo-body">
             <div className="promo-title">Customize your inbox</div>
             <div className="promo-desc">Choose what stays visible, and quietly sort everything else away</div>
-            <div className="promo-cta">Manage categories {Icon.arrowRight}</div>
+            <div className="promo-cta">Manage categories →</div>
           </div>
         </div>
       </div>
