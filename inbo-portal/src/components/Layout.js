@@ -230,6 +230,7 @@ export default function Layout({ children, title, topbarRight }) {
   const [settingsOpen, setSettingsOpen] = useState(
     location.pathname.startsWith('/settings') || location.pathname === '/billing'
   );
+  const notifBtnRef = useRef(null);
 
   useEffect(() => {
     api.get('/stats').then(setEmailStats).catch(() => {});
@@ -248,6 +249,13 @@ export default function Layout({ children, title, topbarRight }) {
 
   return (
     <div className="app-shell">
+      {/* ── NOTIFICATIONS (rendered at root to avoid overflow clipping) ── */}
+      {showNotifs && (
+        <div style={{ position: 'fixed', top: 54, right: 12, zIndex: 500, width: 'min(320px, calc(100vw - 24px))' }}>
+          <NotifDropdown onClose={() => setShowNotifs(false)} />
+        </div>
+      )}
+
       {/* ── MOBILE OVERLAY ── */}
       {sidebarOpen && (
         <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
@@ -264,11 +272,10 @@ export default function Layout({ children, title, topbarRight }) {
             </button>
             {/* Notifications */}
             <div className="notif-wrap">
-              <button className="icon-btn" onClick={() => setShowNotifs(v => !v)}>
+              <button className="icon-btn" ref={notifBtnRef} onClick={() => setShowNotifs(v => !v)}>
                 {Icon.bell}
                 {unreadCount > 0 && <span className="notif-count">{unreadCount}</span>}
               </button>
-              {showNotifs && <NotifDropdown onClose={() => setShowNotifs(false)} />}
             </div>
           </div>
         </div>
