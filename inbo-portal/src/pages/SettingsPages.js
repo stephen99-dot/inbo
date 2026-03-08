@@ -164,6 +164,8 @@ export function IntegrationsPage() {
     }
     setDrafting(false);
   };
+
+  const syncGmail = async (full = false) => {
     setSyncing(true);
     setSyncMsg('');
     try {
