@@ -3,8 +3,8 @@ import { Icon } from '../components/Layout';
 
 export default function NotetakerPage() {
   const topbarRight = (
-    <button className="topbar-btn primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      {Icon.record} Record meeting
+    <button className="btn btn-primary btn-sm">
+      Record meeting
     </button>
   );
 
@@ -17,16 +17,8 @@ export default function NotetakerPage() {
 
       <div className="promo-grid" style={{ maxWidth: 800, margin: '0 auto 24px' }}>
         <div className="promo-card">
-          <div className="promo-art" style={{ flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg-active)', borderRadius: 8, padding: '10px 16px', width: '80%' }}>
-              <svg viewBox="0 0 10 10" width="8" height="8"><circle cx="5" cy="5" r="5" fill="var(--red)"/></svg>
-              <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>00:24</span>
-              <div style={{ flex: 1, height: 20, borderRadius: 4, background: 'linear-gradient(90deg, var(--amber) 0%, var(--amber-soft) 60%, transparent 100%)', opacity: 0.6 }} />
-              <div style={{ background: 'var(--bg-hover)', borderRadius: 4, padding: '3px 8px', fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                {Icon.record} Stop
-              </div>
-            </div>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Listening...</span>
+          <div className="promo-art">
+            {Icon.mic}
           </div>
           <div className="promo-body">
             <div className="promo-title">Record in-person meetings</div>
@@ -35,7 +27,11 @@ export default function NotetakerPage() {
           </div>
         </div>
         <div className="promo-card">
-          <div className="promo-art">{Icon.video}</div>
+          <div className="promo-art">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="48" height="48" style={{ opacity: 0.5, color: 'var(--text-muted)' }}>
+              <path d="M15 10l4.553-2.276A1 1 0 0121 8.723v6.554a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
+            </svg>
+          </div>
           <div className="promo-body">
             <div className="promo-title">Join video calls</div>
             <div className="promo-desc">Let Inbo join your meetings for instant transcripts and summaries.</div>
