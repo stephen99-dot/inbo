@@ -264,9 +264,11 @@ router.get('/auth/gmail/callback', async (req, res) => {
 router.post('/gmail/sync', verifyToken, async (req, res) => {
   try {
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    console.log('Sync request - gmail_connected:', user.gmail_connected, 'has_refresh_token:', !!user.gmail_refresh_token);
     if (!user.gmail_connected) return res.status(400).json({ error: 'Gmail not connected' });
 
     const emails = await fetchEmails(req.user.id, 50);
+    console.log('Fetched emails count:', emails.length);
     let added = 0;
     for (const e of emails) {
       const exists = db.prepare('SELECT id FROM emails WHERE user_id = ? AND message_id = ?').get(req.user.id, e.message_id);
@@ -277,8 +279,10 @@ router.post('/gmail/sync', verifyToken, async (req, res) => {
         added++;
       }
     }
+    console.log('Sync complete - added:', added);
     res.json({ synced: emails.length, added });
   } catch (err) {
+    console.error('Sync error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
