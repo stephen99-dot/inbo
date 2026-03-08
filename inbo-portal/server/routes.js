@@ -267,7 +267,10 @@ router.post('/gmail/sync', verifyToken, async (req, res) => {
     console.log('Sync request - gmail_connected:', user.gmail_connected, 'has_refresh_token:', !!user.gmail_refresh_token);
     if (!user.gmail_connected) return res.status(400).json({ error: 'Gmail not connected' });
 
-    const emails = await fetchEmails(req.user.id, 50);
+    const { full } = req.body;
+    const limit = full ? 500 : 50;
+
+    const emails = await fetchEmails(req.user.id, limit);
     console.log('Fetched emails count:', emails.length);
     let added = 0;
     for (const e of emails) {
