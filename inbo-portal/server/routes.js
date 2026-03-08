@@ -212,7 +212,7 @@ router.get('/admin/stats', verifyToken, requireAdmin, (req, res) => {
 });
 
 // ─── GMAIL OAUTH ───────────────────────────────────────────────────────────────
-const { getAuthUrl, exchangeCode, fetchEmails, createGmailDraft, sendEmail } = require('./gmail');
+const { getAuthUrl, exchangeCode, fetchEmails, createGmailDraft, sendEmail, ensureGmailLabel, applyGmailLabel, LABEL_COLORS } = require('./gmail');
 
 router.get('/auth/gmail', verifyToken, (req, res) => {
   const url = getAuthUrl(req.user.id);
@@ -606,6 +606,16 @@ router.post('/gmail/draft-all', verifyToken, async (req, res) => {
           const category = await categoriseEmail(email);
           db.prepare('UPDATE emails SET category = ? WHERE id = ?').run(category, email.id);
 
+          // Apply Gmail label
+          try {
+            const labelName = `Inbo/${category.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}`;
+            const color = LABEL_COLORS[category] || LABEL_COLORS.uncategorised;
+            const labelId = await ensureGmailLabel(user.id, labelName, color);
+            await applyGmailLabel(user.id, email.message_id, labelId);
+          } catch (err) {
+            console.error('Label error:', err.message);
+          }
+
           if (category === 'urgent' || category === 'reply_needed') {
             const draft = await autoDraftReply(user, email);
             if (draft) {
@@ -698,6 +708,17 @@ async function processNewEmails(user) {
       ).run(emailId, user.id, e.message_id, e.thread_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body, category);
 
       console.log(`Processed email from ${e.from_name}: "${e.subject}" → ${category}`);
+
+      // Apply Gmail label
+      try {
+        const labelName = `Inbo/${category.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}`;
+        const color = LABEL_COLORS[category] || LABEL_COLORS.uncategorised;
+        const labelId = await ensureGmailLabel(user.id, labelName, color);
+        await applyGmailLabel(user.id, e.message_id, labelId);
+        console.log(`Applied label "${labelName}" to "${e.subject}"`);
+      } catch (err) {
+        console.error('Label error:', err.message);
+      }
 
       // Auto-draft reply for urgent/reply_needed emails
       if (category === 'urgent' || category === 'reply_needed') {
