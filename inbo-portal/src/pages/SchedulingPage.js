@@ -35,7 +35,7 @@ export default function SchedulingPage() {
             <input className="link-input" readOnly value={link} />
             <button className="copy-btn" onClick={copyLink}>{copied ? 'Copied ✓' : 'Copy link'}</button>
           </div>
-          <div className="update-link">Update Meeting Settings {Icon.arrowRight}</div>
+          <div className="update-link">Update Meeting Settings →</div>
         </div>
       </div>
 
@@ -45,7 +45,7 @@ export default function SchedulingPage() {
           <div className="promo-body">
             <div className="promo-title">Optimize your scheduling workflow</div>
             <div className="promo-desc">Smart algorithms suggest optimal meeting times and streamline your scheduling process.</div>
-            <div className="promo-cta">Learn more {Icon.arrowRight}</div>
+            <div className="promo-cta">Learn more →</div>
           </div>
         </div>
         <div className="promo-card">
@@ -53,7 +53,7 @@ export default function SchedulingPage() {
           <div className="promo-body">
             <div className="promo-title">Team scheduling</div>
             <div className="promo-desc">Browse availability across your team and book meetings with multiple attendees at once.</div>
-            <div className="promo-cta" onClick={() => navigate('/settings/people')}>Manage teams {Icon.arrowRight}</div>
+            <div className="promo-cta" onClick={() => navigate('/settings/people')}>Manage teams →</div>
           </div>
         </div>
       </div>
