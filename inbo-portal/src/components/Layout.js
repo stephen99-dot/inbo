@@ -249,12 +249,21 @@ export default function Layout({ children, title, topbarRight }) {
 
   return (
     <div className="app-shell">
-      {/* ── NOTIFICATIONS (rendered at root to avoid overflow clipping) ── */}
-      {showNotifs && (
-        <div style={{ position: 'fixed', top: 54, right: 12, zIndex: 500, width: 'min(320px, calc(100vw - 24px))' }}>
-          <NotifDropdown onClose={() => setShowNotifs(false)} />
-        </div>
-      )}
+      {/* ── NOTIFICATIONS (rendered at root, positioned below bell button) ── */}
+      {showNotifs && (() => {
+        const rect = notifBtnRef.current?.getBoundingClientRect();
+        return (
+          <div style={{
+            position: 'fixed',
+            top: rect ? rect.bottom + 8 : 54,
+            left: rect ? Math.min(rect.left, window.innerWidth - 332) : 12,
+            zIndex: 500,
+            width: 'min(320px, calc(100vw - 24px))'
+          }}>
+            <NotifDropdown onClose={() => setShowNotifs(false)} />
+          </div>
+        );
+      })()}
 
       {/* ── MOBILE OVERLAY ── */}
       {sidebarOpen && (
