@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
+import { Icon } from '../components/Layout';
 import { api } from '../utils/api';
 
 const AVATAR_COLORS = ['#3D7A5C','#9BB8C5','#C4A882','#B4A0C8','#7A8C5C','#C47A5C','#5C7AA8'];
@@ -18,12 +19,17 @@ function timeAgo(dt) {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+const UrgentDot = () => <svg viewBox="0 0 8 8" width="8" height="8" style={{flexShrink:0}}><circle cx="4" cy="4" r="4" fill="var(--red)"/></svg>;
+const ReplyIcon = () => <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><path d="M2 7l4-4v2.5c4 0 6 2 6 5.5-1.5-2-3-3-6-3V10L2 7z"/></svg>;
+const FYIIcon = () => <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><circle cx="7" cy="7" r="6"/><path d="M7 6v4M7 4.5v.5"/></svg>;
+const MarketingIcon = () => <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><path d="M2 5h7l2-3v9l-2-3H2V5z"/><path d="M5 8v3"/></svg>;
+
 const FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'urgent', label: '🔴 Urgent' },
-  { key: 'reply_needed', label: '⚡ Reply needed' },
-  { key: 'fyi', label: '📋 FYI' },
-  { key: 'marketing', label: '📣 Marketing' },
+  { key: 'all', label: 'All', icon: null },
+  { key: 'urgent', label: 'Urgent', icon: <UrgentDot /> },
+  { key: 'reply_needed', label: 'Reply needed', icon: <ReplyIcon /> },
+  { key: 'fyi', label: 'FYI', icon: <FYIIcon /> },
+  { key: 'marketing', label: 'Marketing', icon: <MarketingIcon /> },
 ];
 
 export default function InboxPage() {
@@ -80,9 +86,12 @@ export default function InboxPage() {
             {FILTERS.map(f => (
               <button
                 key={f.key}
-                className={`filter-chip ${filter === f.key ? 'active' : ''} ${f.key === 'urgent' && filter === 'urgent' ? 'urgent' : ''}`}
+                className={`filter-chip ${filter === f.key ? 'active' : ''}`}
                 onClick={() => setFilter(f.key)}
-              >{f.label}</button>
+                style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+              >
+                {f.icon}{f.label}
+              </button>
             ))}
           </div>
 
