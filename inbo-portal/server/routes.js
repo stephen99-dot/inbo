@@ -263,9 +263,9 @@ router.get('/auth/gmail/callback', async (req, res) => {
         const exists = db.prepare('SELECT id FROM emails WHERE user_id = ? AND message_id = ?').get(userId, e.message_id);
         if (!exists) {
           const { v4: uuid } = require('uuid');
-          db.prepare(`INSERT INTO emails (id, user_id, message_id, thread_id, provider, from_name, from_email, subject, body_preview, full_body, category, status)
-            VALUES (?, ?, ?, ?, 'gmail', ?, ?, ?, ?, ?, 'uncategorised', 'unread')`
-          ).run(uuid(), userId, e.message_id, e.thread_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body);
+          db.prepare(`INSERT INTO emails (id, user_id, message_id, thread_id, provider, from_name, from_email, subject, body_preview, full_body, body_html, category, status)
+            VALUES (?, ?, ?, ?, 'gmail', ?, ?, ?, ?, ?, ?, 'uncategorised', 'unread')`
+          ).run(uuid(), userId, e.message_id, e.thread_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body, e.body_html || '');
         }
       }
     } catch {}
@@ -298,9 +298,9 @@ router.post('/gmail/sync', verifyToken, async (req, res) => {
     for (const e of emails) {
       const exists = db.prepare('SELECT id FROM emails WHERE user_id = ? AND message_id = ?').get(req.user.id, e.message_id);
       if (!exists) {
-        db.prepare(`INSERT INTO emails (id, user_id, message_id, thread_id, provider, from_name, from_email, subject, body_preview, full_body, category, status)
-          VALUES (?, ?, ?, ?, 'gmail', ?, ?, ?, ?, ?, 'uncategorised', 'unread')`
-        ).run(require('uuid').v4(), req.user.id, e.message_id, e.thread_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body);
+        db.prepare(`INSERT INTO emails (id, user_id, message_id, thread_id, provider, from_name, from_email, subject, body_preview, full_body, body_html, category, status)
+          VALUES (?, ?, ?, ?, 'gmail', ?, ?, ?, ?, ?, ?, 'uncategorised', 'unread')`
+        ).run(require('uuid').v4(), req.user.id, e.message_id, e.thread_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body, e.body_html || '');
         added++;
       }
     }
@@ -703,9 +703,9 @@ async function processNewEmails(user) {
       // Auto-categorise with Claude
       const category = await categoriseEmail(e);
 
-      db.prepare(`INSERT INTO emails (id, user_id, message_id, thread_id, provider, from_name, from_email, subject, body_preview, full_body, category, status)
-        VALUES (?, ?, ?, ?, 'gmail', ?, ?, ?, ?, ?, ?, 'unread')`
-      ).run(emailId, user.id, e.message_id, e.thread_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body, category);
+      db.prepare(`INSERT INTO emails (id, user_id, message_id, thread_id, provider, from_name, from_email, subject, body_preview, full_body, body_html, category, status)
+        VALUES (?, ?, ?, ?, 'gmail', ?, ?, ?, ?, ?, ?, ?, 'unread')`
+      ).run(emailId, user.id, e.message_id, e.thread_id, e.from_name, e.from_email, e.subject, e.body_preview, e.full_body, e.body_html || '', category);
 
       console.log(`Processed email from ${e.from_name}: "${e.subject}" → ${category}`);
 
