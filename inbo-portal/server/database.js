@@ -116,5 +116,6 @@ const addEmailColIfMissing = (col, def) => {
   }
 };
 addEmailColIfMissing('thread_id', 'TEXT');
+addEmailColIfMissing('body_html', 'TEXT');
 
 module.exports = db;
