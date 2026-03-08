@@ -106,5 +106,6 @@ const addIfMissing = (col, def) => {
 addIfMissing('gmail_access_token', 'TEXT');
 addIfMissing('gmail_refresh_token', 'TEXT');
 addIfMissing('gmail_token_expires', 'INTEGER');
+addIfMissing('gmail_watch_expiry', 'INTEGER');
 
 module.exports = db;
