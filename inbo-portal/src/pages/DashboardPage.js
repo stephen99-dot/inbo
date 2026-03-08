@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { Icon } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
 
@@ -23,13 +24,12 @@ export default function DashboardPage() {
 
   const topbarRight = (
     <div className="topbar-select" onClick={() => navigate('/settings/organization')}>
-      Personal <span style={{ fontSize: 10, marginLeft: 4 }}>⌄</span>
+      Personal {Icon.chevronDown}
     </div>
   );
 
   return (
     <Layout title="Dashboard" topbarRight={topbarRight}>
-      {/* ── Stat cards ── */}
       <div className="stat-row">
         <div className="stat-card">
           <div className="stat-label">Emails processed</div>
@@ -45,7 +45,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Meetings ── */}
       <p className="section-title-label">Your meetings</p>
       <div className="meetings-grid">
         <div className="meeting-card">
@@ -58,45 +57,37 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Scheduling link ── */}
       <div className="scheduling-section">
         <div className="sched-text">
           <h3>Share your scheduling link</h3>
-          <p>Inbo uses this link when someone asks what times you're available for a meeting. You can also directly share this link to let others book a time on your calendar.</p>
+          <p>Inbo uses this link when someone asks what times you're available. Share it to let others book directly.</p>
         </div>
         <div className="sched-link-box">
           <div className="link-row">
-            <input
-              className="link-input"
-              readOnly
-              value={`https://inbo.ai/e/${user?.email?.split('@')[0] || 'you'}/30`}
-            />
-            <button className="copy-btn" onClick={copyLink}>
-              {copied ? 'Copied ✓' : 'Copy link ⌄'}
-            </button>
+            <input className="link-input" readOnly value={`https://inbo.ai/e/${user?.email?.split('@')[0] || 'you'}/30`} />
+            <button className="copy-btn" onClick={copyLink}>{copied ? 'Copied ✓' : 'Copy link'}</button>
           </div>
           <div className="update-link" onClick={() => navigate('/scheduling')}>
-            Update Meeting Settings →
+            Update Meeting Settings {Icon.arrowRight}
           </div>
         </div>
       </div>
 
-      {/* ── Promo cards ── */}
       <div className="promo-grid">
         <div className="promo-card" onClick={() => navigate('/notetaker')}>
-          <div className="promo-art">📝</div>
+          <div className="promo-art">{Icon.notes}</div>
           <div className="promo-body">
             <div className="promo-title">Browse your meeting notes</div>
-            <div className="promo-desc">Watch meeting recordings, read full transcripts, and get concise summaries</div>
-            <div className="promo-cta">View Notes →</div>
+            <div className="promo-desc">Read full transcripts and get concise AI summaries of every meeting</div>
+            <div className="promo-cta">View Notes {Icon.arrowRight}</div>
           </div>
         </div>
         <div className="promo-card" onClick={() => navigate('/categorization')}>
-          <div className="promo-art">🗂</div>
+          <div className="promo-art">{Icon.categorization}</div>
           <div className="promo-body">
             <div className="promo-title">Customize your inbox</div>
             <div className="promo-desc">Choose what stays visible, and quietly sort everything else away</div>
-            <div className="promo-cta">Manage categories →</div>
+            <div className="promo-cta">Manage categories {Icon.arrowRight}</div>
           </div>
         </div>
       </div>
