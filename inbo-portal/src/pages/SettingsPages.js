@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Icon } from '../components/Layout';
@@ -123,10 +123,14 @@ export function IntegrationsPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
 
-  // Check URL for success/error from OAuth callback
+  // Refresh user data on load to pick up gmail_connected after OAuth redirect
+  useEffect(() => {
+    api.get('/auth/me').then(setUser).catch(() => {});
+  }, []);
+
   const hash = window.location.hash;
   const urlSuccess = hash.includes('success=gmail');
-  const urlError = hash.includes('error=');
+  const urlError = hash.includes('error=') && !hash.includes('success=');
 
   const INTEGRATIONS = [
     { key: 'gmail', icon: Icon.mail, name: 'Gmail', desc: 'Connect your Gmail inbox to read and draft emails', connected: user?.gmail_connected, email: user?.gmail_email },
@@ -151,8 +155,8 @@ export function IntegrationsPage() {
     setSyncMsg('');
     try {
       const result = await api.post('/gmail/sync', {});
-      setSyncMsg(`Synced ${result.synced} emails, ${result.added} new.`);
-      setTimeout(() => setSyncMsg(''), 4000);
+      setSyncMsg(`Synced — ${result.added} new emails added.`);
+      setTimeout(() => setSyncMsg(''), 5000);
     } catch (err) {
       setSyncMsg('Sync failed: ' + err.message);
     }
@@ -170,7 +174,7 @@ export function IntegrationsPage() {
 
       {urlSuccess && (
         <div style={{ marginBottom: 14, padding: '10px 14px', background: 'var(--green-soft)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--green)' }}>
-          Gmail connected successfully! Your inbox is being synced.
+          Gmail connected successfully! Click <strong>Sync inbox</strong> to pull in your emails.
         </div>
       )}
       {urlError && (
