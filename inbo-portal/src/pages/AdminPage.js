@@ -71,6 +71,7 @@ export default function AdminPage() {
           ? <div style={{ padding: 32, textAlign: 'center' }}><div className="spinner" /></div>
           : (
             <div style={{ overflowX: 'auto' }}>
+              <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
                   <tr>
@@ -104,6 +105,7 @@ export default function AdminPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
       </div>
