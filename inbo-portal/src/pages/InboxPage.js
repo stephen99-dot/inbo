@@ -101,29 +101,31 @@ export default function InboxPage() {
               ? <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                   No emails in this category
                 </div>
-              : emails.map(email => (
-                <div
-                  key={email.id}
-                  className={`email-row ${email.status === 'unread' ? 'unread' : ''} ${selected?.id === email.id ? 'selected' : ''}`}
-                  onClick={() => selectEmail(email)}
-                >
-                  <div className="er-avatar" style={{ background: getColor(email.from_name) }}>
-                    {initials(email.from_name)}
-                  </div>
-                  <div className="er-body">
-                    <div className="er-top">
-                      <span className="er-from">{email.from_name}</span>
-                      <span className="er-time">{timeAgo(email.received_at)}</span>
+              : <div className="email-scroll">
+                  {emails.map(email => (
+                  <div
+                    key={email.id}
+                    className={`email-row ${email.status === 'unread' ? 'unread' : ''} ${selected?.id === email.id ? 'selected' : ''}`}
+                    onClick={() => selectEmail(email)}
+                  >
+                    <div className="er-avatar" style={{ background: getColor(email.from_name) }}>
+                      {initials(email.from_name)}
                     </div>
-                    <div className="er-subject">{email.subject}</div>
-                    <div className="er-tags">
-                      <span className={`tag tag-${email.category}`}>{email.category.replace('_', ' ')}</span>
-                      {email.has_draft && !email.draft_approved && <span className="tag tag-draft">Draft ready</span>}
-                      {email.draft_approved ? <span className="tag" style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.25)' }}>Sent ✓</span> : null}
+                    <div className="er-body">
+                      <div className="er-top">
+                        <span className="er-from">{email.from_name}</span>
+                        <span className="er-time">{timeAgo(email.received_at)}</span>
+                      </div>
+                      <div className="er-subject">{email.subject}</div>
+                      <div className="er-tags">
+                        <span className={`tag tag-${email.category}`}>{email.category.replace('_', ' ')}</span>
+                        {email.has_draft && !email.draft_approved && <span className="tag tag-draft">Draft ready</span>}
+                        {email.draft_approved ? <span className="tag" style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.25)' }}>Sent ✓</span> : null}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                  ))}
+                </div>}
         </div>
 
         {/* Detail panel */}
