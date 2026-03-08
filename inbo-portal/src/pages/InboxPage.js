@@ -146,7 +146,27 @@ export default function InboxPage() {
                 </div>
 
                 <div className="email-body">
-                  {selected.full_body || selected.body_preview || '(No content)'}
+                  {selected.body_html ? (
+                    <iframe
+                      srcDoc={selected.body_html}
+                      sandbox="allow-same-origin"
+                      style={{
+                        width: '100%',
+                        minHeight: 400,
+                        border: 'none',
+                        borderRadius: 6,
+                        background: '#fff',
+                        display: 'block'
+                      }}
+                      onLoad={e => {
+                        const doc = e.target.contentDocument;
+                        if (doc) e.target.style.height = doc.documentElement.scrollHeight + 'px';
+                      }}
+                      title="email-content"
+                    />
+                  ) : (
+                    selected.full_body || selected.body_preview || '(No content)'
+                  )}
                 </div>
 
                 {selected.has_draft && !selected.draft_approved && (
