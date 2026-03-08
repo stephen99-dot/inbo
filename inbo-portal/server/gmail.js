@@ -159,13 +159,13 @@ async function fetchEmails(userId, maxResults = 30) {
 
       emails.push({
         message_id: msg.id,
+        thread_id: full.threadId,
         from_name: fromName,
         from_email: fromEmail,
         subject: get('Subject'),
         body_preview: body.substring(0, 200).replace(/\n/g, ' '),
         full_body: body.substring(0, 5000),
         date: get('Date'),
-        thread_id: full.threadId
       });
     } catch {}
   }
