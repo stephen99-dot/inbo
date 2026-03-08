@@ -143,8 +143,9 @@ async function fetchEmails(userId, maxResults = 30) {
       const fromName = fromMatch[1]?.trim().replace(/^"|"$/g, '') || from;
       const fromEmail = fromMatch[2]?.trim() || from;
 
-      // Get body
+      // Get body - prefer plain text, also grab HTML
       let body = '';
+      let bodyHtml = '';
       const getPart = (part) => {
         if (part.mimeType === 'text/plain' && part.body?.data) {
           return Buffer.from(part.body.data, 'base64').toString('utf8');
@@ -152,9 +153,20 @@ async function fetchEmails(userId, maxResults = 30) {
         if (part.parts) { for (const p of part.parts) { const r = getPart(p); if (r) return r; } }
         return '';
       };
+      const getHtmlPart = (part) => {
+        if (part.mimeType === 'text/html' && part.body?.data) {
+          return Buffer.from(part.body.data, 'base64').toString('utf8');
+        }
+        if (part.parts) { for (const p of part.parts) { const r = getHtmlPart(p); if (r) return r; } }
+        return '';
+      };
       body = getPart(full.payload);
       if (!body && full.payload?.body?.data) {
         body = Buffer.from(full.payload.body.data, 'base64').toString('utf8');
+      }
+      bodyHtml = getHtmlPart(full.payload);
+      if (!bodyHtml && full.payload?.body?.data && full.payload.mimeType === 'text/html') {
+        bodyHtml = Buffer.from(full.payload.body.data, 'base64').toString('utf8');
       }
 
       emails.push({
@@ -163,8 +175,9 @@ async function fetchEmails(userId, maxResults = 30) {
         from_name: fromName,
         from_email: fromEmail,
         subject: get('Subject'),
-        body_preview: body.substring(0, 200).replace(/\n/g, ' '),
-        full_body: body.substring(0, 5000),
+        body_preview: (body || bodyHtml.replace(/<[^>]+>/g, ' ')).substring(0, 200).replace(/\n/g, ' '),
+        full_body: body.substring(0, 5000) || bodyHtml.replace(/<[^>]+>/g, ' ').substring(0, 5000),
+        body_html: bodyHtml.substring(0, 50000),
         date: get('Date'),
       });
     } catch {}
