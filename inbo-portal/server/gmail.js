@@ -221,4 +221,38 @@ async function sendEmail(userId, { to, subject, body, threadId }) {
   return result;
 }
 
-module.exports = { getAuthUrl, exchangeCode, fetchEmails, createGmailDraft, sendEmail, gmailRequest };
+// ── Ensure Gmail label exists, return its ID ─────────────────────────────────
+async function ensureGmailLabel(userId, name, color) {
+  // List existing labels
+  const list = await gmailRequest(userId, '/gmail/v1/users/me/labels');
+  const existing = list.labels?.find(l => l.name === name);
+  if (existing) return existing.id;
+
+  // Create it
+  const created = await gmailRequest(userId, '/gmail/v1/users/me/labels', 'POST', {
+    name,
+    labelListVisibility: 'labelShow',
+    messageListVisibility: 'show',
+    color: { backgroundColor: color.bg, textColor: color.text }
+  });
+  console.log(`Created Gmail label: ${name} (${created.id})`);
+  return created.id;
+}
+
+// ── Apply label to a Gmail message ───────────────────────────────────────────
+async function applyGmailLabel(userId, messageId, labelId) {
+  await gmailRequest(userId, `/gmail/v1/users/me/messages/${messageId}/modify`, 'POST', {
+    addLabelIds: [labelId]
+  });
+}
+
+// ── Label colours (Gmail supported hex values) ────────────────────────────────
+const LABEL_COLORS = {
+  urgent:        { bg: '#fb4c2f', text: '#ffffff' },
+  reply_needed:  { bg: '#ffad47', text: '#ffffff' },
+  fyi:           { bg: '#4986e7', text: '#ffffff' },
+  marketing:     { bg: '#b99aff', text: '#ffffff' },
+  uncategorised: { bg: '#8a8a8a', text: '#ffffff' },
+};
+
+module.exports = { getAuthUrl, exchangeCode, fetchEmails, createGmailDraft, sendEmail, gmailRequest, ensureGmailLabel, applyGmailLabel, LABEL_COLORS };
