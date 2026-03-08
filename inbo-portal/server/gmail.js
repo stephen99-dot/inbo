@@ -13,6 +13,7 @@ function getAuthUrl(userId) {
     response_type: 'code',
     scope: [
       'https://www.googleapis.com/auth/gmail.readonly',
+      'https://www.googleapis.com/auth/gmail.send',
       'https://www.googleapis.com/auth/gmail.compose',
       'https://www.googleapis.com/auth/gmail.modify',
       'https://www.googleapis.com/auth/userinfo.email'
@@ -211,7 +212,8 @@ async function sendEmail(userId, { to, subject, body, threadId }) {
 
   const sendBody = { raw, ...(threadId ? { threadId } : {}) };
   const result = await gmailRequest(userId, '/gmail/v1/users/me/messages/send', 'POST', sendBody);
-  console.log('Send result:', result.id, result.labelIds);
+  if (result.error) throw new Error(`Gmail send error: ${JSON.stringify(result.error)}`);
+  console.log('Email sent successfully:', result.id, result.labelIds);
   return result;
 }
 
