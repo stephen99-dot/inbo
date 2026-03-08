@@ -218,7 +218,7 @@ function NotifDropdown({ onClose }) {
 }
 
 // ── Main layout ───────────────────────────────────────────────────────────────
-export default function Layout({ children, title, topbarRight }) {
+export default function Layout({ children, title, topbarRight, noPadding }) {
   const { user, logout } = useAuth();
   const { theme, toggle: toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -391,7 +391,7 @@ export default function Layout({ children, title, topbarRight }) {
           </div>
           <div className="topbar-actions">{topbarRight}</div>
         </div>
-        <div className="page-body">{children}</div>
+        <div className="page-body" style={noPadding ? { padding: 0, overflow: 'hidden' } : {}}>{children}</div>
       </div>
     </div>
   );
