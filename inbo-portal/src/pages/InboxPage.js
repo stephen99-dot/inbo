@@ -79,7 +79,7 @@ export default function InboxPage() {
 
   return (
     <Layout title="Inbox">
-      <div className="inbox-layout" style={{ margin: '-24px' }}>
+      <div className="inbox-layout" style={{ margin: '-22px' }}>
         {/* Email list */}
         <div className="email-list-panel">
           <div className="email-filters">
