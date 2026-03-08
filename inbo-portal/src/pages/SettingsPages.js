@@ -150,11 +150,11 @@ export function IntegrationsPage() {
     }
   };
 
-  const syncGmail = async () => {
+  const syncGmail = async (full = false) => {
     setSyncing(true);
     setSyncMsg('');
     try {
-      const result = await api.post('/gmail/sync', {});
+      const result = await api.post('/gmail/sync', { full });
       setSyncMsg(`Synced — ${result.added} new emails added.`);
       setTimeout(() => setSyncMsg(''), 5000);
     } catch (err) {
@@ -196,9 +196,14 @@ export function IntegrationsPage() {
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               {int.key === 'gmail' && int.connected && (
-                <button className="btn btn-ghost btn-sm" onClick={syncGmail} disabled={syncing}>
-                  {syncing ? 'Syncing...' : 'Sync inbox'}
-                </button>
+                <>
+                  <button className="btn btn-ghost btn-sm" onClick={() => syncGmail(false)} disabled={syncing}>
+                    {syncing ? 'Syncing...' : 'Sync latest'}
+                  </button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => syncGmail(true)} disabled={syncing}>
+                    Full sync
+                  </button>
+                </>
               )}
               <button
                 className={`btn btn-sm ${int.connected ? 'btn-danger' : 'btn-ghost'}`}
