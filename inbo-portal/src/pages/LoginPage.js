@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { Icon } from '../components/Layout';
 import { useNavigate } from 'react-router-dom';
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { theme, toggle: toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,6 +30,9 @@ export default function LoginPage() {
   return (
     <div className="auth-wrap">
       <div className="auth-glow" />
+      <button className="icon-btn auth-theme-toggle" onClick={toggleTheme} title="Toggle theme">
+        {theme === 'dark' ? Icon.sun : Icon.moon}
+      </button>
       <div className="auth-card">
         <div className="auth-logo">in<em>bo</em></div>
         <h1 className="auth-title">Welcome back</h1>
