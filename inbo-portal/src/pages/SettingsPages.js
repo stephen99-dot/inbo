@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { Icon } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
 
@@ -27,7 +28,7 @@ export function OrganizationPage() {
       </div>
 
       <div className="invite-banner">
-        <div className="invite-icon">👥</div>
+        <div className="invite-icon">{Icon.users}</div>
         <div style={{ flex: 1 }}>
           <div className="invite-title">Invite your team</div>
           <div className="invite-desc">Inbo gets smarter when teammates share context. Invite them to collaborate.</div>
