@@ -31,7 +31,7 @@ export default function NotetakerPage() {
           <div className="promo-body">
             <div className="promo-title">Record in-person meetings</div>
             <div className="promo-desc">Click. Speak. Record. Done. Instant transcripts and summaries.</div>
-            <div className="promo-cta">Start {Icon.arrowRight}</div>
+            <div className="promo-cta">Start →</div>
           </div>
         </div>
         <div className="promo-card">
@@ -39,7 +39,7 @@ export default function NotetakerPage() {
           <div className="promo-body">
             <div className="promo-title">Join video calls</div>
             <div className="promo-desc">Let Inbo join your meetings for instant transcripts and summaries.</div>
-            <div className="promo-cta">Start {Icon.arrowRight}</div>
+            <div className="promo-cta">Start →</div>
           </div>
         </div>
       </div>
