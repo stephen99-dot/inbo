@@ -226,6 +226,7 @@ export default function Layout({ children, title, topbarRight }) {
   const [showNotifs, setShowNotifs] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [emailStats, setEmailStats] = useState({ unread: 0, drafts: 0 });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(
     location.pathname.startsWith('/settings') || location.pathname === '/billing'
   );
@@ -242,12 +243,16 @@ export default function Layout({ children, title, topbarRight }) {
 
   useEffect(() => {
     if (location.pathname.startsWith('/settings') || location.pathname === '/billing') setSettingsOpen(true);
+    setSidebarOpen(false); // close on navigate
   }, [location.pathname]);
 
   return (
     <div className="app-shell">
+      {/* ── MOBILE OVERLAY ── */}
+      <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} style={{ display: sidebarOpen ? 'block' : 'none' }} />
+
       {/* ── SIDEBAR ── */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-top">
           <div className="sidebar-logo">in<em>bo</em></div>
           <div className="sidebar-top-actions">
@@ -358,7 +363,14 @@ export default function Layout({ children, title, topbarRight }) {
       {/* ── MAIN ── */}
       <div className="main-content">
         <div className="topbar">
-          <div className="topbar-title">{title}</div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <button className="topbar-hamburger" onClick={() => setSidebarOpen(v => !v)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M3 12h18M3 6h18M3 18h18"/>
+              </svg>
+            </button>
+            <div className="topbar-title">{title}</div>
+          </div>
           <div className="topbar-actions">{topbarRight}</div>
         </div>
         <div className="page-body">{children}</div>
