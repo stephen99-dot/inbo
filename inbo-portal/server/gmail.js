@@ -127,7 +127,7 @@ async function gmailRequest(userId, path, method = 'GET', body = null) {
 
 // ── Fetch inbox emails ────────────────────────────────────────────────────────
 async function fetchEmails(userId, maxResults = 30) {
-  const list = await gmailRequest(userId, `/gmail/v1/users/me/messages?maxResults=${maxResults}&labelIds=INBOX`);
+  const list = await gmailRequest(userId, `/gmail/v1/users/me/messages?maxResults=${Math.min(maxResults, 500)}&labelIds=INBOX`);
   if (!list.messages) return [];
 
   const emails = [];
