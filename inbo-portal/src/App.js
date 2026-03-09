@@ -1,8 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import OnboardingPage from './pages/OnboardingPage';
 import DashboardPage from './pages/DashboardPage';
 import InboxPage from './pages/InboxPage';
 import DraftsPage from './pages/DraftsPage';
@@ -16,8 +17,10 @@ import AdminPage from './pages/AdminPage';
 import { OrganizationPage, PeoplePage, IntegrationsPage, ProfileSettingsPage } from './pages/SettingsPages';
 import './styles.css';
 
-function ProtectedRoute({ children, adminOnly }) {
+function ProtectedRoute({ children, adminOnly, skipOnboarding }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
+
   if (loading) return (
     <div className="loading-screen">
       <div className="loading-logo">in<em>bo</em></div>
@@ -26,6 +29,10 @@ function ProtectedRoute({ children, adminOnly }) {
   );
   if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && user.role !== 'admin') return <Navigate to="/dashboard" replace />;
+  // Force onboarding if Gmail not connected, unless we're already on onboarding
+  if (!skipOnboarding && !user.gmail_connected && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
   return children;
 }
 
@@ -40,8 +47,9 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-      <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+      <Route path="/login" element={user ? <Navigate to={user.gmail_connected ? '/inbox' : '/onboarding'} replace /> : <LoginPage />} />
+      <Route path="/register" element={user ? <Navigate to="/onboarding" replace /> : <RegisterPage />} />
+      <Route path="/onboarding" element={<ProtectedRoute skipOnboarding><OnboardingPage /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
       <Route path="/drafts" element={<ProtectedRoute><DraftsPage /></ProtectedRoute>} />
@@ -57,7 +65,7 @@ function AppRoutes() {
       <Route path="/settings/profile" element={<ProtectedRoute><ProfileSettingsPage /></ProtectedRoute>} />
       <Route path="/settings" element={<Navigate to="/settings/organization" replace />} />
       <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
+      <Route path="*" element={<Navigate to={user ? (user.gmail_connected ? '/inbox' : '/onboarding') : '/login'} replace />} />
     </Routes>
   );
 }
