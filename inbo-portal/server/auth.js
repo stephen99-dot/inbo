@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('./database');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'inbo-dev-secret-change-in-prod';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'hello@crmwizardai.com';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'hello@getinbo.io';
 
 function generateToken(user) {
   return jwt.sign(
